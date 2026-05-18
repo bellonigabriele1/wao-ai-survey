@@ -1,30 +1,37 @@
 /* ============================================================================
-   WAO AI Survey — Google Apps Script backend
+   WAO AI Survey — Google Apps Script backend (hardened)
    ----------------------------------------------------------------------------
-   COME INSTALLARLO (5 minuti)
-   1. Vai su https://sheets.google.com e crea un nuovo Google Sheet.
-      Rinominalo "WAO AI Survey — Responses".
-   2. Dal menu: Estensioni → Apps Script.
-   3. Cancella il codice di default e incolla TUTTO questo file.
-   4. Clicca "Salva" (icona dischetto), dai un nome al progetto (es. "wao-survey").
-   5. Clicca "Esegui" sulla funzione `setup` (selettore in alto). Concedi i permessi
-      al tuo account quando richiesto. Questo crea l'header del foglio.
-   6. Clicca "Distribuisci" (in alto a destra) → "Nuova distribuzione".
-      - Tipo: "App web"
-      - Descrizione: "WAO AI Survey endpoint"
-      - Esegui come: "Me (tuo@waospaces.it)"
-      - Chi ha accesso: "Chiunque" (la URL fa da chiave)
-      Clicca "Distribuisci" e copia la "URL app web".
-   7. Incolla quella URL nel file index.html, costante `ENDPOINT`.
-   8. Fatto. Le risposte arrivano sul Sheet in tempo reale.
+   COME INSTALLARLO (primo setup, ~5 min)
+   1. Sul tuo Google Sheet (account personale): Estensioni → Apps Script.
+   2. Cancella il codice di default e incolla TUTTO questo file dentro Code.gs.
+   3. Mostra il manifest: clicca sull'icona "Impostazioni progetto" (ingranaggio
+      a sinistra) → spunta "Mostra il file manifest 'appsscript.json' nell'editor".
+   4. Apri il file `appsscript.json` apparso a sinistra e incolla esattamente
+      il contenuto del file `appsscript.json` di questo repo.
+   5. Salva il progetto (dischetto), assegna un nome (es. "wao-survey").
+   6. Esegui la funzione `setup` (selettore in alto). Concedi i permessi: vedrai
+      richiedere SOLO l'accesso a questo Sheet (currentonly), non a tutto Drive.
+   7. Distribuisci → Nuova distribuzione → Tipo "App web"
+        - Esegui come: "Me"
+        - Chi ha accesso: "Chiunque"
+        Distribuisci e copia l'URL.
 
-   NOTE
-   - L'endpoint accetta solo POST con corpo JSON (text/plain per evitare CORS).
-   - In caso di nuove domande, aggiungi la chiave a HEADERS qui sotto e ri-esegui
-     setup() per aggiornare l'intestazione (non sovrascrive le righe già esistenti).
+   AGGIORNAMENTO (se modifichi il codice in futuro)
+   - Distribuisci → Gestisci distribuzioni → matita → "Nuova versione" → Distribuisci.
+     L'URL del Web App rimane la stessa.
+
+   HARDENING ATTIVI
+   - Scope OAuth ristretto (spreadsheets.currentonly): anche se modificassi questo
+     codice in futuro, Google NON permetterebbe più di accedere ad altri Sheets.
+   - Token segreto condiviso (SECRET_TOKEN qui sotto) verificato in doPost.
+     Senza token corretto, le POST vengono rifiutate.
    ========================================================================== */
 
 const SHEET_NAME = "Responses";
+
+// IMPORTANTE: questo token deve essere identico a quello in index.html (campo TOKEN).
+// Se lo rigenerate, va aggiornato in entrambi i file.
+const SECRET_TOKEN = "3ced0ef27e8067d7bb2c34b0a1d0b8df9268b57ab2983616";
 
 const HEADERS = [
   "submittedAt", "anonymous", "userAgent",
@@ -44,7 +51,7 @@ function setup() {
   if (!sh) sh = ss.insertSheet(SHEET_NAME);
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   sh.setFrozenRows(1);
-  sh.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold").setBackground("#0E0E10").setFontColor("#E8FF5E");
+  sh.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold").setBackground("#3c3b30").setFontColor("#fcfaee");
   sh.autoResizeColumns(1, HEADERS.length);
   SpreadsheetApp.getUi().alert("Setup completato. Ora distribuisci come App web.");
 }
@@ -52,6 +59,12 @@ function setup() {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
+
+    if (payload.__token !== SECRET_TOKEN) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "unauthorized" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME) || setupSheet_();
     const p = payload._profile || {};
     const row = HEADERS.map(h => {

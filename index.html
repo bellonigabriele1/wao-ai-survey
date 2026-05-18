@@ -679,6 +679,7 @@
    ========================================================================= */
 
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxtjX6hrU4XiquOObPAqimIHKJim2XbYhGY0y_RpenWRT7aGVyFRpS19Ln1uHtc43fM/exec";
+const TOKEN = "3ced0ef27e8067d7bb2c34b0a1d0b8df9268b57ab2983616"; // must match SECRET_TOKEN in apps-script.gs
 
 const form = document.getElementById("survey");
 const bar = document.getElementById("bar");
@@ -849,6 +850,7 @@ function serialize() {
   data.__anonymous = anonToggle.checked;
   data.__submittedAt = new Date().toISOString();
   data.__userAgent = navigator.userAgent;
+  data.__token = TOKEN;
   return data;
 }
 
