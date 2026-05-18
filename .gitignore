@@ -1,0 +1,6 @@
+.DS_Store
+*.pdf
+brand_pages/
+node_modules/
+.vercel
+*.log
