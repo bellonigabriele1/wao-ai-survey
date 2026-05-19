@@ -353,6 +353,70 @@
     text-align: right; max-width: 60%;
   }
 
+  /* Personalised plan blocks (A / B) */
+  .plan-block {
+    margin: 28px auto 0;
+    max-width: 720px;
+    text-align: left;
+    background: var(--wao-surface);
+    border: 1px solid var(--wao-fg);
+    border-radius: var(--radius-lg);
+    padding: 28px 28px 24px;
+  }
+  .plan-block.plan-b {
+    background: var(--wao-bg-soft);
+  }
+  .plan-tag {
+    display: inline-block;
+    font-family: var(--wao-font-display);
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    background: var(--wao-yellow); color: var(--wao-fg);
+    padding: 6px 12px;
+    margin-bottom: 14px;
+  }
+  .plan-block.plan-b .plan-tag {
+    background: var(--wao-accent);
+  }
+  .plan-block .arrow-acc {
+    color: var(--wao-red);
+    font-size: 14px;
+    margin: 0 4px;
+  }
+  .plan-block h3 {
+    font-family: var(--wao-font-display);
+    font-size: 24px; line-height: 1.05; letter-spacing: 0.005em;
+    text-transform: uppercase;
+    margin: 0 0 18px;
+    color: var(--wao-fg);
+  }
+  .plan-block ul {
+    list-style: none;
+    padding: 0; margin: 0;
+  }
+  .plan-block li {
+    position: relative;
+    padding: 12px 0 12px 28px;
+    border-top: 1px solid var(--wao-border);
+    font-size: 15px; line-height: 1.5; color: var(--wao-fg);
+  }
+  .plan-block li:first-child { border-top: 0; }
+  .plan-block li::before {
+    content: ">";
+    position: absolute; left: 4px; top: 12px;
+    color: var(--wao-red);
+    font-family: var(--wao-font-display); font-weight: 700;
+    font-size: 18px; line-height: 1.4;
+  }
+  .plan-block li b {
+    font-family: var(--wao-font-body); font-weight: 700;
+    color: var(--wao-fg);
+  }
+  @media (max-width: 560px) {
+    .plan-block { padding: 22px 18px 18px; }
+    .plan-block h3 { font-size: 20px; }
+    .plan-block li { font-size: 14.5px; }
+  }
+
   footer {
     margin-top: 64px; padding: 24px 20px;
     text-align: center; color: var(--wao-fg-muted); font-size: 12.5px;
@@ -657,15 +721,26 @@
   <div id="thanks">
     <div class="badge">✓</div>
     <h2>Ricevuto, grazie.</h2>
-    <p>Le tue risposte sono già nel piano. Nei prossimi giorni ti arriva una proposta di percorso formativo personalizzato, basata anche su quello che ci hai scritto qui.</p>
+    <p>Sulla base delle tue risposte ti ho preparato un piano in due movimenti: cosa fare già da questa settimana per portare l'AI nel tuo lavoro, e come formarti per diventare autonomo nel realizzarlo.</p>
 
     <div class="score-card" id="scoreCard">
-      <h3>Il tuo profilo (anteprima)</h3>
+      <h3>Il tuo profilo</h3>
       <div class="row"><span>AI Maturity</span><b id="r_maturity">—</b></div>
       <div class="row"><span>Critical Literacy</span><b id="r_literacy">—</b></div>
       <div class="row"><span>Readiness</span><b id="r_readiness">—</b></div>
-      <div class="row"><span>Moduli suggeriti</span><b id="r_modules">—</b></div>
     </div>
+
+    <section class="plan-block plan-a">
+      <span class="plan-tag">A <span class="arrow-acc">&gt;</span> Piano d'azione</span>
+      <h3>Come applicare l'AI da subito al tuo lavoro</h3>
+      <ul id="plan-a-list"></ul>
+    </section>
+
+    <section class="plan-block plan-b">
+      <span class="plan-tag">B <span class="arrow-acc">&gt;</span> Percorso formativo</span>
+      <h3>Come formarti per essere in grado di farlo</h3>
+      <ul id="plan-b-list"></ul>
+    </section>
   </div>
 </main>
 
@@ -824,7 +899,168 @@ function computeProfile(data) {
   modules.push("M8 Office Hour", "M9 Community");
   if (maturity >= 2) modules.push("M10 Automazione del mese");
 
-  return { maturity, literacy, readiness, modules };
+  const profile = { maturity, literacy, readiness, modules };
+  const plan = buildPlan(data, profile);
+  profile.planA = plan.planA;
+  profile.planB = plan.planB;
+  return profile;
+}
+
+/* ---------- Personalised plan builder ---------- */
+function trimQuote(s, n) {
+  s = (s || "").trim().replace(/\s+/g, " ");
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+function buildPlan(data, profile) {
+  const area = data.A2_area || "Altro";
+  const maturity = profile.maturity;
+  const literacy = profile.literacy;
+  const readiness = profile.readiness;
+  const blockers = data.C1_blockers || [];
+  const formats = data.E2_format || [];
+  const budget = data.E3_budget;
+  const ambassador = data.F1_ambassador;
+  const timesinks = (data.D1_timesinks || "").trim();
+  const wish = (data.D2_wish || "").trim();
+
+  // === Sezione A — use case concreti per cluster, ordinati per livello ===
+  const playbook = {
+    "Operations & Hospitality": [
+      { lvl: 0, t: "<b>Risposte rapide ai membri.</b> Prendi una mail-tipo che ricevi spesso, chiedi a ChatGPT o Claude tre varianti con il tuo tono di voce, tieni la migliore come template e riusala." },
+      { lvl: 1, t: "<b>NotebookLM come knowledge base di turno.</b> Carica regolamento, FAQ e vademecum WAO: durante il turno chiedi in chat invece di cercare nei PDF. Setup: 20 minuti, risparmio: 30 minuti al giorno." },
+      { lvl: 2, t: "<b>Custom GPT \"Operations WAO\".</b> Addestralo sui manuali interni e sulle FAQ più frequenti: ogni nuovo collega o nuovo spazio lo usa come primo punto di riferimento, riducendo le interruzioni dai senior." },
+      { lvl: 3, t: "<b>Automazione email in arrivo.</b> Zapier o Make + AI: mail in arrivo → AI la categorizza per urgenza/tipo → bozza di risposta in draft Gmail pronta da rivedere e inviare." }
+    ],
+    "Community & Eventi": [
+      { lvl: 0, t: "<b>Caption Instagram in 30 secondi.</b> Per ogni evento: \"Genera 5 caption per evento X, audience Y, tono WAO\". Scegli, riadatta, pubblica." },
+      { lvl: 1, t: "<b>Trend watch settimanale con Perplexity.</b> Chiedi cosa stanno facendo gli spazi/coworking simili a WAO sul tema community in [città], con fonti citate. 15 minuti, output da girare al team." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Voice\".</b> Carica brand book + esempi delle tue comunicazioni migliori: ogni invito, save-the-date, copy passa da lì → coerenza tonale anche se sei in vacanza." },
+      { lvl: 3, t: "<b>Reminder automatici personalizzati.</b> Form RSVP → AI segmenta i partecipanti per profilo → mail di reminder personalizzata 24h prima dell'evento (nome, profilo, perché venire)." }
+    ],
+    "Sales & Account": [
+      { lvl: 0, t: "<b>Discovery pre-call in 2 minuti.</b> \"Perplexity, parlami di [azienda X]: cosa fa, news ultimi 6 mesi, persone chiave\". Entri in call con un contesto già solido." },
+      { lvl: 1, t: "<b>Da note meeting a follow-up.</b> Registra/trascrivi il meeting, poi chiedi a Claude di estrarre next steps e generare la mail di follow-up. Da 30 minuti a 5." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Sales Companion\".</b> Listino, USP, case study, FAQ ricorrenti dei prospect: generi proposal personalizzate in 15 minuti invece di una giornata." },
+      { lvl: 3, t: "<b>A/B test subject email automatico.</b> AI genera 5 varianti di oggetto per ogni outreach, traccia open rate, impara cosa funziona col tuo ICP." }
+    ],
+    "Marketing & Comms": [
+      { lvl: 0, t: "<b>Calendario editoriale assistito.</b> \"Genera 12 post Instagram su [tema] per WAO, tono X, con visual brief per il designer\". Da brainstorm a piano in 20 minuti." },
+      { lvl: 1, t: "<b>Immagini draft con Midjourney/DALL·E.</b> Definisci uno style prompt WAO che riusi, draft veloci quando il designer è in carico ad altro." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Brand Voice\".</b> Brand book + esempi: chiunque scrive copy (tu, agenzie, sales) ci fa passare il testo prima di pubblicare. Coerenza al 90% senza review manuale." },
+      { lvl: 3, t: "<b>Pipeline contenuti semi-automatica.</b> Notion/Airtable di idee → AI le sviluppa in draft → tu approvi → publishing schedulato su social/blog." }
+    ],
+    "People & Culture (HR)": [
+      { lvl: 0, t: "<b>JD in 5 minuti.</b> Descrivi il ruolo + cultura WAO a Claude, ottieni una job description pronta da rifinire e pubblicare." },
+      { lvl: 1, t: "<b>Screening CV intelligente.</b> \"Leggi questi 50 CV e dammi i top 5 secondo criteri A/B/C, con motivazione\". Da 3 ore a 15 minuti per scremare la prima rosa." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Onboarding\".</b> Policy, benefit, processi, FAQ: i nuovi colleghi fanno domande al bot invece che ai senior. Onboarding più veloce e meno interruzioni." },
+      { lvl: 3, t: "<b>Survey climate analizzata in 10 minuti.</b> Incolla le risposte aperte, AI le raggruppa per temi, segnala i sentiment più ricorrenti e le 3 azioni di priorità." }
+    ],
+    "Finance & Admin": [
+      { lvl: 0, t: "<b>Risposte policy ricorrenti.</b> Costruisci un prompt \"agisci come Admin WAO\" + le policy → bozze di risposta a domande standard (rimborsi, permessi, note spese)." },
+      { lvl: 1, t: "<b>NotebookLM con il regolamento amministrativo.</b> Carica regolamento, contratti standard, processi: trovi una clausola in 5 secondi invece di 5 minuti di scroll PDF." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Admin\".</b> Prontuario delle eccezioni più frequenti + processi: meno interruzioni dai colleghi su questioni note." },
+      { lvl: 3, t: "<b>Estrazione dati da PDF.</b> Fatture/DDT in arrivo via mail → AI estrae dati strutturati → popolazione automatica del registro contabile." }
+    ],
+    "Real Estate & Design": [
+      { lvl: 0, t: "<b>Brief design conversazionale.</b> Descrivi a Claude un'esigenza utente, ricevi una moodboard testuale + lista di domande da fare al cliente. Mai partire più dal foglio bianco." },
+      { lvl: 1, t: "<b>Ricerca location con Perplexity.</b> Analisi quartieri (prezzi al mq, demografia, attività vicine, news) prima ancora di visitare. Filtra rapidamente le opzioni." },
+      { lvl: 2, t: "<b>Custom GPT con il design system WAO.</b> Ogni brief inviato a designer esterni parte da lì → meno revisioni, più coerenza." },
+      { lvl: 3, t: "<b>Rendering concettuali iniziali via AI.</b> Midjourney/DALL·E per allineare il cliente sulla direzione prima di passare al rendering tecnico vero." }
+    ],
+    "Tech / IT": [
+      { lvl: 0, t: "<b>Pair programming quotidiano.</b> Claude, Cursor o Copilot per snippet, debug e code review veloce. Inizia anche solo dal commit message generato dall'AI." },
+      { lvl: 1, t: "<b>Documentazione che si scrive da sola.</b> Chiedi all'AI di estrarre README e diagrammi dal codice esistente. Aggiornali periodicamente." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Tech\".</b> Doc interna + convenzioni di codice: utile per onboarding tecnico e Q&A asincrona di team." },
+      { lvl: 3, t: "<b>Agenti per task ricorrenti.</b> Monitoring uptime, alert automation, summary di log della settimana inviato il lunedì mattina." }
+    ],
+    "Direzione / Staff": [
+      { lvl: 0, t: "<b>Briefing reading da 1 pagina.</b> \"Leggi questi 5 report e dammi un sommario esecutivo con le 3 decisioni che ne discendono\". Da ore di lettura a 10 minuti." },
+      { lvl: 1, t: "<b>Preparazione board accelerata.</b> Note + dati → bozza di 10 slide pronta da rifinire. Risparmi mezza giornata di setup." },
+      { lvl: 2, t: "<b>Custom GPT \"WAO Strategy Companion\".</b> Piano triennale, KPI, contesto competitivo: ti dialoga al volo su qualsiasi decisione strategica, anche fuori orario." },
+      { lvl: 3, t: "<b>Dashboard conversazionale.</b> Collega i tuoi fogli/database, fai domande in linguaggio naturale invece di scrivere query." }
+    ],
+    "Altro": [
+      { lvl: 0, t: "<b>Inizia dalle email.</b> Prendi un'email ricorrente che scrivi spesso, chiedi tre varianti, scegli, salvane il template. Primo wow garantito." },
+      { lvl: 1, t: "<b>NotebookLM con i tuoi documenti.</b> Carica i tuoi file di riferimento e fai domande in chat invece di rileggerli ogni volta." },
+      { lvl: 2, t: "<b>Custom GPT del tuo ruolo.</b> Incorpora il tuo know-how: diventa il tuo \"secondo te\" su task ripetitivi e domande ricorrenti." },
+      { lvl: 3, t: "<b>Automatizza un task settimanale.</b> Identifica una cosa ripetitiva che fai ogni settimana, ricavane un'automazione AI che la tagli del 70%." }
+    ]
+  };
+
+  const cases = playbook[playbook[area] ? area : "Altro"];
+  const planA = [];
+  const target = Math.min(3, Math.max(0, maturity));
+  const fit = cases.find(c => c.lvl === target);
+  const easy = target > 0 ? cases.find(c => c.lvl === target - 1) : null;
+  const stretch = target < 3 ? cases.find(c => c.lvl === target + 1) : null;
+  if (fit) planA.push(fit.t);
+  if (easy && easy !== fit) planA.push(easy.t);
+  if (stretch && stretch !== fit) planA.push(stretch.t);
+
+  if (timesinks) {
+    planA.push(`<b>Sul tempo che ci hai detto di perdere</b> ("${trimQuote(timesinks, 110)}"): nei prossimi 5 giorni misuralo davvero — quante volte, quanto dura. Poi spiegalo a ChatGPT/Claude come se parlassi a un collega nuovo: nove volte su dieci ne esce un Custom GPT che lo dimezza.`);
+  }
+  if (wish) {
+    planA.push(`<b>Sul desiderio che hai espresso</b> ("${trimQuote(wish, 110)}"): trasformalo in un esperimento concreto entro 7 giorni — un prompt template, una prova reale, poi condividi il risultato in community AI interna.`);
+  }
+
+  // === Sezione B — percorso formativo ===
+  const planB = [];
+
+  if (maturity <= 1) {
+    planB.push("<b>Foundations</b> (workshop di 2h): prompt basics, primo wow personale, regole sui dati aziendali che NON vanno mai in chat. Ti serve per partire col piede giusto.");
+  } else if (maturity === 2) {
+    planB.push("<b>Daily Productivity Pack</b> (workshop di 2h): trucchi quotidiani su email, riassunti, ricerca, meeting notes. Quelli che ti fanno guadagnare 30 minuti al giorno da subito.");
+  } else {
+    planB.push("<b>Builder Track</b> (3 sessioni da 90 min): Custom GPT, NotebookLM, automazioni leggere (Zapier/Make + AI), intro agenti. Esci con almeno un asset costruito da te in produzione.");
+  }
+
+  if (literacy <= 3 || blockers.includes("no-fiducia") || blockers.includes("privacy")) {
+    planB.push("<b>Critical Use</b> (1h, prioritario): limiti, allucinazioni, cosa NON inserire mai in chat, come verificare un output prima di consegnarlo. Disinnesca la diffidenza che hai segnalato.");
+  }
+
+  if (formats.includes("learn-by-doing")) {
+    planB.push("<b>Sessione 1:1 di 90 minuti su un tuo task reale</b>: mi mandi in anticipo il workflow che vuoi velocizzare, prototipiamo insieme la soluzione AI da portare a casa.");
+  } else if (formats.includes("1to1")) {
+    planB.push("<b>Onboarding 1:1 di 60 minuti</b>: costruiamo insieme i tuoi primi 3 prompt template di ruolo. Esci con qualcosa di riusabile da subito.");
+  }
+
+  if (formats.includes("workshop") && maturity >= 2 && !formats.includes("learn-by-doing")) {
+    planB.push("<b>Workshop verticale del tuo cluster</b> (2h, in piccolo gruppo): casi d'uso WAO già accennati qui sopra, in modalità hands-on con i tuoi pari ruolo.");
+  }
+
+  if (formats.includes("peer-mentor")) {
+    planB.push("<b>Peer mentoring con un AI Ambassador</b>: 30 minuti a settimana per 4 settimane. Per sbloccare i dubbi pratici nel momento in cui escono.");
+  }
+
+  if (formats.includes("community")) {
+    planB.push("<b>Community AI interna</b>: prompt library condivisa, casi d'uso reali del team, domande veloci. Canale dedicato che parte col rollout del piano.");
+  }
+
+  if (formats.includes("video")) {
+    planB.push("<b>Pillole video on-demand</b> da 10 minuti: te le mando settimanalmente, calibrate sul cluster del tuo ruolo.");
+  }
+
+  if (formats.includes("officehour")) {
+    planB.push("<b>Office hour Q&A bisettimanale</b> (1h, aperta): porti i tuoi casi, li discutiamo in gruppo. È la rete di sicurezza quando inizi ad applicare.");
+  }
+
+  if (blockers.includes("non-so-iniziare") || blockers.includes("paura-sostituzione")) {
+    planB.push("<b>Sessione di sblocco 1:1 di 30 minuti</b> prima di tutto il resto. Niente tool, solo conversazione su cosa ti pesa davvero. Da lì costruiamo il punto di partenza giusto per te.");
+  }
+
+  if (budget === "<30") {
+    planB.push("<b>Cadenza leggera</b>: dato il poco tempo che hai a disposizione, partiamo da community + 1 pillola video a settimana. I workshop solo quando ti senti pronto.");
+  } else if (budget === ">2h") {
+    planB.push("<b>Cadenza intensa</b>: ti includo nel primo gruppo Builder Track. Aspettativa: in 6 settimane realizzi e metti in produzione almeno un tuo Custom GPT.");
+  }
+
+  if (ambassador === "si" && maturity >= 2) {
+    planB.push("<b>Candidato AI Ambassador del tuo team</b>: ti coinvolgo nel kickoff del programma con i power user delle altre aree. Da power user a moltiplicatore.");
+  }
+
+  return { planA, planB };
 }
 
 function getScoreFor(name, value) {
@@ -915,7 +1151,13 @@ function showThanks(p) {
   document.getElementById("r_maturity").textContent = labelMaturity(p.maturity) + ` (${p.maturity}/4)`;
   document.getElementById("r_literacy").textContent = `${p.literacy}/5`;
   document.getElementById("r_readiness").textContent = `${p.readiness}/5`;
-  document.getElementById("r_modules").textContent = p.modules.join(" · ");
+
+  const ulA = document.getElementById("plan-a-list");
+  const ulB = document.getElementById("plan-b-list");
+  ulA.innerHTML = ""; ulB.innerHTML = "";
+  (p.planA || []).forEach(html => { const li = document.createElement("li"); li.innerHTML = html; ulA.appendChild(li); });
+  (p.planB || []).forEach(html => { const li = document.createElement("li"); li.innerHTML = html; ulB.appendChild(li); });
+
   bar.style.width = "100%"; pct.textContent = "100%";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }

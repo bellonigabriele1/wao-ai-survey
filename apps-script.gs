@@ -42,7 +42,8 @@ const HEADERS = [
   "D1_timesinks", "D2_wish", "D3_risks",
   "E1_readiness", "E2_format", "E3_budget",
   "F1_ambassador", "F2_free",
-  "_maturity", "_literacy", "_readiness", "_modules"
+  "_maturity", "_literacy", "_readiness", "_modules",
+  "_plan_a", "_plan_b"
 ];
 
 function setup() {
@@ -75,6 +76,8 @@ function doPost(e) {
       if (h === "_literacy")    return p.literacy ?? "";
       if (h === "_readiness")   return p.readiness ?? "";
       if (h === "_modules")     return (p.modules || []).join(" | ");
+      if (h === "_plan_a")      return stripHtml_((p.planA || []).join("\n\n• "));
+      if (h === "_plan_b")      return stripHtml_((p.planB || []).join("\n\n• "));
       const v = payload[h];
       if (Array.isArray(v)) return v.join(" | ");
       return v ?? "";
@@ -91,6 +94,15 @@ function doPost(e) {
 function setupSheet_() {
   setup();
   return SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
+}
+
+function stripHtml_(s) {
+  if (!s) return "";
+  return String(s)
+    .replace(/<\/?b>/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 }
 
 function doGet() {
